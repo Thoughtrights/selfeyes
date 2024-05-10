@@ -71,7 +71,6 @@ function showPrevNextArrows(num) {
     }
 }
 function clickOnPreview() {
-    console.log("clickOnPreview. w00t");
     image = event.srcElement.src; // grab the image that was clicked
     photoNumber = showThisSlide(image);
     showPrevNextArrows(photoNumber);

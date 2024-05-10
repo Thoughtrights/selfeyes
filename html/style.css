@@ -71,7 +71,7 @@ h2 {
     display: none;
     position: fixed;
     z-index: 1;
-    padding-top: 25%;
+    padding-top: 10%;
     left: 0;
     top: 0;
     width: 100%;
@@ -89,7 +89,7 @@ h2 {
     padding: 0;
 }
 
-/* The Close Button */
+/* The close (x) button */
 .close {
     color: white;
     position: absolute;
@@ -163,11 +163,12 @@ h2 {
 
 /* Number text (1/3 etc) */
 .numbertext {
-    color: #f2f2f2;
-    font-size: 24px;
-    padding: 8px 12px;
+    color: white;
     position: absolute;
-    top: 0;
+    top: 10px;
+    left: 25px;
+    font-size: 24px;
+    font-weight: bold;
     z-index: 2;
 }
 
