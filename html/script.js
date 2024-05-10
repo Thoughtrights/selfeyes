@@ -1,4 +1,4 @@
-// Wrap every letter in a span
+// Title animation
 var textWrapper = document.querySelector('.title');
 textWrapper.innerHTML = textWrapper.textContent.replace(/\S/g, "<span class='letter'>$&</span>");
 
@@ -20,35 +20,77 @@ anime.timeline({loop: true})
 	delay: (el, i) => 5000 + 30 * i
     });
 
-
-////////////////////////////////////////////////////////////////////
-function openModal() {
-    document.getElementById("myModal").style.display = "block";
+// Gather photos from DOM
+photos = document.getElementsByClassName("photograph-preview");
+photoSrcIndex = [];
+for (i = 0; i < photos.length; i++) {
+    photos[i].onclick = clickOnPreview; // Set all the onClick events
+    photoSrcIndex[i] = photos[i].src; // Used for prev/next search later
 }
+
+// Gather modal elements
+modal = document.getElementById("myModal");
+x = document.getElementById("x");
+x.onclick = closeModal;
+slideTemplate = document.getElementById("slideTemplate");
+slideTemplate.onclick = closeModal;
+slideTemplateImage = document.getElementById("slideTemplateImage");
+slideNumberText = document.getElementById("slideNumberText");
+
+// Modal prev/next stuff
+prev = document.getElementById("prev");
+next = document.getElementById("next");
+prev.onclick = clickOnPrev;
+next.onclick = clickOnNext;
+photoNumber = 0;
+slideNumberText.innerHTML = "1 / " + photos.length;
+
 
 function closeModal() {
-    document.getElementById("myModal").style.display = "none";
+    slideTemplate.style.display = "none";
+    modal.style.display = "none";
 }
-
-var slideIndex = 1;
-showSlides(slideIndex);
-
-function plusSlides(n) {
-    showSlides(slideIndex += n);
+function showThisSlide(theImage) {
+    slideTemplateImage.src = theImage; 
+    slideTemplate.style.display = "block";
+    modal.style.display = "block";
+    photoNumber = photoSrcIndex.indexOf(theImage);
+    slideNumberText.innerHTML = (photoNumber + 1) + " / " + photos.length;
+    return(photoNumber);
 }
-
-function currentSlide(n) {
-    showSlides(slideIndex = n);
-}
-
-function showSlides(n) {
-    var i;
-    var slides = document.getElementsByClassName("mySlides");
-    var captionText = document.getElementById("caption");
-    if (n > slides.length) {slideIndex = 1}
-    if (n < 1) {slideIndex = slides.length}
-    for (i = 0; i < slides.length; i++) {
-	slides[i].style.display = "none";
+function showPrevNextArrows(num) {
+    if (num == 0) {
+	prev.style.display = "none";
+    } else {
+	prev.style.display = "block";
     }
-    slides[slideIndex-1].style.display = "block";
+    if ((num +1) >= photos.length) {
+	next.style.display = "none";
+    } else {
+	next.style.display = "block";
+    }
 }
+function clickOnPreview() {
+    console.log("clickOnPreview. w00t");
+    image = event.srcElement.src; // grab the image that was clicked
+    photoNumber = showThisSlide(image);
+    showPrevNextArrows(photoNumber);
+}
+
+function clickOnPrev() {                   // we don't have context so
+    image = photoSrcIndex[photoNumber -1]; // rely on photoNumber avail globally
+    photoNumber = showThisSlide(image);
+    showPrevNextArrows(photoNumber);
+}
+function clickOnNext() {                   // we don't have context so
+    image = photoSrcIndex[photoNumber +1]; // rely on photoNumber avail globally
+    photoNumber = showThisSlide(image);
+    showPrevNextArrows(photoNumber);
+}
+
+
+  
+
+   
+
+

@@ -10,18 +10,17 @@ slideshow found on CodePen.io. Original URL:
 
 # TODO
 
-* Okay. So. I'm going to re-write the HTML and JS. I didn't realize the
-  assumptions it was making that are ... not good. It prevents it from being extended.
-  
-* I will also pull all style out of the HTML.
-
-* I will also pull all javascript out.
-
-* I'll also ratchet down the HTML so it just has a modal template
-  element instead of 100 repeated elements.
-
-* I will also make the javascript a bit more of a finesse. 
-
 * Get the styling cleaned so the markup doesn't have a `<p />` which is not legal.
+* I sometimes see a focus issue for the on mouseover CSS.
+
+# Changes
+
+* Ripped out the style markup from HTML and pushed into style.css.
+* Ripped out the onclick from HTML and enabled via script.js.
+* Removed expectation that previews would be in the same order as modal HTML.
+* Removed all modal HTML except for a single template.
+* Made some special work for prev/next to work correctly in all cases.
+* Performance improvements.
+* Reduced expectations on the HTML.
 
 
