@@ -1,0 +1,82 @@
+# selfeyes-pipeline configuration
+# API keys go in .env (never committed), not here.
+
+[flickr]
+search_terms = [
+  "selfie portrait",
+  "self portrait",
+  "sunglasses portrait",
+  "aviators portrait",
+  "mirror selfie",
+  "mirror reflection portrait",
+  "dog portrait close-up",
+  "cat portrait close-up",
+  "pet eyes",
+  "horse eye macro",
+]
+include_commons = true
+per_page = 500
+max_pages_per_term = 4
+
+[loc]
+# No API key required. All results are U.S. Government Work (public domain).
+search_terms = [
+  "portrait eye",
+  "daguerreotype face",
+  "photograph portrait close",
+  "selfie",
+]
+max_pages_per_term = 3
+results_per_page = 50
+
+[smithsonian]
+# api_key via SMITHSONIAN_API_KEY env var
+search_terms = [
+  "portrait photograph",
+  "daguerreotype",
+  "face photograph",
+  "eye portrait",
+]
+rows_per_request = 100
+max_requests_per_term = 3
+
+[licenses]
+flickr_allowed = [4, 5, 7, 8, 9, 10]
+# Set true only if gallery has a commercial dimension (prints, ad revenue, etc.)
+allow_non_commercial = false
+
+[filters]
+min_long_side_px = 2400
+min_eye_px = 200
+sharpness_min_variance = 100.0
+tag_blocklist = [
+  # Minors
+  "baby", "babies", "infant", "toddler",
+  "child", "children", "kid", "kids",
+  "school", "classroom",
+  # AI-generated
+  "ai", "aigenerated", "aiart", "aiportrait",
+  "stablediffusion", "midjourney", "dalle", "dalle2", "dalle3",
+  "generativeai", "artificialintelligence", "aiimage",
+  "imagineai", "firefly", "leonardoai", "runwayml",
+  # Illustrations / non-photographic
+  "illustration", "illustrated", "drawing", "sketch",
+  "digitalart", "digitalpainting", "digitalillustration",
+  "artwork", "vector", "vectorart", "cartoon", "anime",
+  "painting", "watercolor", "oilpainting", "acrylic",
+  "3drender", "3dart", "cgi", "render", "blender",
+  "virtualportrait",
+]
+
+[crop]
+face_longest_side_px = 1400
+face_padding_pct = 0.15
+eye_padding_pct = 0.40
+jpeg_quality_face = 88
+jpeg_quality_eye = 92
+
+[paths]
+cache_dir = "data/cache"
+db_path = "data/manifest.sqlite"
+output_dir = "../html/assets/pipeline"
+manifest_json = "../html/manifest.json"

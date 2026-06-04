@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Selfeyes Review</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #141414;
+      --border: #2a2a2a;
+      --fg: #e8e8e8;
+      --muted: #666;
+      --green: #2d7a3a;
+      --green-light: #3ea84f;
+      --skip: #555;
+      --approved-bg: #0d2010;
+      --skipped-bg: #1a1a1a;
+      --accent: #c8a96e;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.05em; color: var(--accent); }
+    .stats { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+    .stats span { white-space: nowrap; }
+    .stats strong { color: var(--fg); }
+    nav { margin-left: auto; display: flex; gap: 6px; }
+    nav a {
+      padding: 5px 12px; border-radius: 4px; font-size: 12px;
+      text-decoration: none; color: var(--muted); border: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+    nav a:hover { color: var(--fg); border-color: var(--fg); }
+    nav a.active { color: var(--fg); border-color: var(--accent); background: rgba(200,169,110,0.08); }
+
+    .hint { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+    .hint kbd {
+      background: var(--border); padding: 1px 5px; border-radius: 3px;
+      font-family: monospace; font-size: 10px; color: var(--fg);
+    }
+
+    /* ── Grid ── */
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: 16px;
+      padding: 20px 20px 80px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, opacity 0.3s;
+      outline: none;
+    }
+    .card:focus { border-color: var(--accent); }
+    .card.is-approved { background: var(--approved-bg); border-color: var(--green); opacity: 0.6; }
+    .card.is-skipped  { background: var(--skipped-bg); opacity: 0.35; }
+    .card.active-card { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(200,169,110,0.25); }
+
+    /* ── Images ── */
+    .images {
+      display: flex;
+      gap: 2px;
+      background: #000;
+      height: 220px;
+      overflow: hidden;
+    }
+    .face-wrap {
+      flex: 1;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .eye-wrap {
+      width: 200px;
+      flex-shrink: 0;
+      overflow: hidden;
+      cursor: zoom-in;
+      position: relative;
+    }
+    .face-wrap img, .eye-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity 0.2s;
+    }
+    .face-wrap:hover img, .eye-wrap:hover img { opacity: 0.85; }
+    .eye-label {
+      position: absolute;
+      bottom: 6px; right: 6px;
+      font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+      pointer-events: none;
+    }
+
+    /* ── Meta ── */
+    .meta {
+      padding: 12px 14px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .scores {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .score-bar label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); white-space: nowrap; }
+    .bar-track { flex: 1; height: 3px; background: var(--border); border-radius: 2px; }
+    .bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+    .score-val { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
+
+    .attribution {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .attribution .source-badge {
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+      background: var(--border); padding: 2px 6px; border-radius: 3px; color: var(--fg);
+    }
+    .attribution a { color: var(--muted); text-decoration: none; }
+    .attribution a:hover { color: var(--fg); text-decoration: underline; }
+
+    /* ── Caption + Actions ── */
+    .actions {
+      padding: 10px 14px 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: auto;
+    }
+    .caption-input {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--fg);
+      font-size: 12px;
+      padding: 5px 8px;
+      outline: none;
+    }
+    .caption-input:focus { border-color: var(--accent); }
+    .caption-input::placeholder { color: var(--muted); }
+
+    .btn-approve {
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-approve:hover { background: var(--green-light); }
+    .btn-skip {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-skip:hover { color: var(--fg); border-color: var(--fg); }
+
+    .status-badge {
+      font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 3px;
+    }
+    .status-badge.approved { background: var(--green); color: #fff; }
+    .status-badge.skipped  { background: var(--border); color: var(--muted); }
+
+    /* ── Lightbox ── */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,0.96);
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 96vw;
+      max-height: 96vh;
+      object-fit: contain;
+      cursor: default;
+    }
+    #lightbox-close {
+      position: absolute;
+      top: 16px; right: 20px;
+      color: #888; font-size: 28px; cursor: pointer; line-height: 1;
+    }
+    #lightbox-close:hover { color: #fff; }
+
+    /* ── Empty state ── */
+    .empty {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+    .empty h2 { font-size: 1.4rem; margin-bottom: 8px; color: var(--fg); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Selfeyes Review</h1>
+  <div class="stats">
+    <span>Pending <strong id="stat-pending">{{ stats.pending }}</strong></span>
+    <span>Approved <strong id="stat-approved">{{ stats.approved }}</strong></span>
+    <span>Skipped <strong id="stat-skipped">{{ stats.skipped }}</strong></span>
+    <span>Total eyes <strong>{{ stats.eyes }}</strong></span>
+  </div>
+  <nav>
+    <a href="/?status=pending"  class="{{ 'active' if status_filter == 'pending' else '' }}">Pending</a>
+    <a href="/?status=approved" class="{{ 'active' if status_filter == 'approved' else '' }}">Approved</a>
+    <a href="/?status=skipped"  class="{{ 'active' if status_filter == 'skipped' else '' }}">Skipped</a>
+    <a href="/?status=all"      class="{{ 'active' if status_filter == 'all' else '' }}">All</a>
+  </nav>
+  <span class="hint">
+    <kbd>A</kbd> approve &nbsp;
+    <kbd>S</kbd> skip &nbsp;
+    <kbd>O</kbd> open source &nbsp;
+    <kbd>↑↓</kbd> navigate &nbsp;
+    <kbd>Esc</kbd> close lightbox
+  </span>
+</header>
+
+<div id="grid">
+  {% if not eyes %}
+  <div class="empty">
+    <h2>Nothing here yet.</h2>
+    <p>Run <code>python -m selfeyes_pipeline process</code> to generate candidates.</p>
+  </div>
+  {% endif %}
+
+  {% for eye in eyes %}
+  <div class="card {% if eye.status == 'approved' %}is-approved{% elif eye.status == 'skipped' %}is-skipped{% endif %}"
+       data-eye-id="{{ eye.id }}"
+       data-status="{{ eye.status }}"
+       data-source-url="{{ eye.source_page_url }}"
+       tabindex="0">
+
+    <div class="images">
+      <div class="face-wrap" onclick="openLightbox('{{ eye.face_crop_path }}')">
+        <img src="/img/{{ eye.face_crop_path }}" alt="face crop" loading="lazy">
+      </div>
+      <div class="eye-wrap" onclick="openLightbox('{{ eye.eye_crop_path }}')">
+        <img src="/img/{{ eye.eye_crop_path }}" alt="eye crop" loading="lazy">
+        <span class="eye-label">eye · {{ eye.side }}</span>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="scores">
+        <div class="score-bar">
+          <label>Reflection</label>
+          <div class="bar-track"><div class="bar-fill" style="width:{{ (eye.reflection_score * 100)|int }}%"></div></div>
+          <span class="score-val">{{ "%.2f"|format(eye.reflection_score) }}</span>
+        </div>
+        <div class="score-bar">
+          <label>Sharp</label>
+          <div class="bar-track"><div class="bar-fill" style="width:{{ [((eye.sharpness or 0) / 800 * 100)|int, 100]|min }}%"></div></div>
+          <span class="score-val">{{ (eye.sharpness or 0)|int }}</span>
+        </div>
+      </div>
+      <div class="attribution">
+        <span class="source-badge">{{ eye.source }}</span>
+        {% if eye.photographer %}<span>{{ eye.photographer }}</span>{% endif %}
+        <span>{{ eye.license_name }}</span>
+        {% if eye.source_page_url %}<a href="{{ eye.source_page_url }}" target="_blank" rel="noopener">source ↗</a>{% endif %}
+      </div>
+    </div>
+
+    <div class="actions">
+      {% if eye.status == 'pending' %}
+        <input class="caption-input" type="text" placeholder="Caption (optional)…" value="">
+        <button class="btn-approve" onclick="doApprove(this)">✓ Add</button>
+        <button class="btn-skip" onclick="doSkip(this)">Skip</button>
+      {% else %}
+        <span class="status-badge {{ eye.status }}">{{ eye.status }}</span>
+        {% if eye.caption %}<span style="font-size:12px;color:var(--muted)">{{ eye.caption }}</span>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightbox-close" onclick="closeLightbox()">×</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+// ── Lightbox ──────────────────────────────────────────────────────────────
+function openLightbox(path) {
+  document.getElementById('lightbox-img').src = '/img/' + path;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+}
+
+// ── Card actions ──────────────────────────────────────────────────────────
+function getCard(btn) { return btn.closest('.card'); }
+function getEyeId(card) { return card.dataset.eyeId; }
+
+async function doApprove(btn) {
+  const card = getCard(btn);
+  const eye_id = getEyeId(card);
+  const caption = card.querySelector('.caption-input')?.value || '';
+  const res = await fetch('/approve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ eye_id, caption }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    card.classList.add('is-approved');
+    card.dataset.status = 'approved';
+    card.querySelector('.actions').innerHTML =
+      '<span class="status-badge approved">approved</span>' +
+      (caption ? `<span style="font-size:12px;color:var(--muted)">${caption}</span>` : '');
+    updateStats(data.stats);
+  }
+}
+
+async function doSkip(btn) {
+  const card = getCard(btn);
+  const eye_id = getEyeId(card);
+  const res = await fetch('/skip', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ eye_id }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    card.classList.add('is-skipped');
+    card.dataset.status = 'skipped';
+    card.querySelector('.actions').innerHTML = '<span class="status-badge skipped">skipped</span>';
+    updateStats(data.stats);
+  }
+}
+
+function updateStats(stats) {
+  document.getElementById('stat-pending').textContent = stats.pending;
+  document.getElementById('stat-approved').textContent = stats.approved;
+  document.getElementById('stat-skipped').textContent = stats.skipped;
+}
+
+// ── Keyboard navigation ───────────────────────────────────────────────────
+const cards = Array.from(document.querySelectorAll('.card'));
+let activeIdx = 0;
+
+function setActive(idx) {
+  cards.forEach(c => c.classList.remove('active-card'));
+  if (idx >= 0 && idx < cards.length) {
+    activeIdx = idx;
+    cards[idx].classList.add('active-card');
+    cards[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    cards[idx].focus();
+  }
+}
+
+if (cards.length) setActive(0);
+
+document.addEventListener('keydown', (e) => {
+  const tag = document.activeElement?.tagName;
+  // Don't hijack shortcuts when typing in caption input
+  if (tag === 'INPUT' && e.key !== 'Escape') return;
+
+  if (document.getElementById('lightbox').classList.contains('open')) {
+    if (e.key === 'Escape') closeLightbox();
+    return;
+  }
+
+  const card = cards[activeIdx];
+  if (!card) return;
+  const status = card.dataset.status;
+
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); setActive(Math.min(activeIdx + 1, cards.length - 1)); }
+  if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  { e.preventDefault(); setActive(Math.max(activeIdx - 1, 0)); }
+  if ((e.key === 'a' || e.key === 'A') && status === 'pending') {
+    card.querySelector('.btn-approve')?.click();
+  }
+  if ((e.key === 's' || e.key === 'S') && status === 'pending') {
+    card.querySelector('.btn-skip')?.click();
+    setActive(Math.min(activeIdx + 1, cards.length - 1));
+  }
+  if (e.key === 'o' || e.key === 'O') {
+    const url = card.dataset.sourceUrl;
+    if (url) window.open(url, '_blank', 'noopener');
+  }
+  if (e.key === 'Escape') { /* nothing */ }
+});
+
+// Click to focus card
+cards.forEach((card, i) => {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    setActive(i);
+  });
+});
+</script>
+</body>
+</html>

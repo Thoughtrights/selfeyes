@@ -102,9 +102,21 @@ function updateArrows() {
   modalNext.classList.toggle('hidden', current === items.length - 1);
 }
 
-// Toggle zoom on tap — ripple at tap point, then zoom toward it
+// Toggle zoom on tap — ripple at tap point, then zoom toward it.
+// Uses scale(3) + translate so the tapped region is always centered
+// in the viewport, which works correctly on both desktop and mobile.
 modalWrap.addEventListener('click', function (e) {
   e.stopPropagation();
+
+  if (zoomed) {
+    // Snap back instantly, no transition
+    modalImg.style.transition = 'none';
+    modalImg.style.transform = '';
+    modalImg.style.transformOrigin = '50% 40%';
+    zoomed = false;
+    modalWrap.classList.remove('zoomed');
+    return;
+  }
 
   // Spawn ripple at tap coordinates
   var ripple = document.createElement('div');
@@ -114,26 +126,22 @@ modalWrap.addEventListener('click', function (e) {
   document.body.appendChild(ripple);
   ripple.addEventListener('animationend', function () { ripple.remove(); });
 
-  if (!zoomed) {
-    var rect = modalImg.getBoundingClientRect();
-    var pctX = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2) + '%';
-    var pctY = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2) + '%';
-    modalImg.style.transformOrigin = pctX + ' ' + pctY;
-  }
+  // Calculate translate so the tap point ends up at the image center
+  // (which is already centered in the viewport).
+  // With transform: scale(S) translate(-dx, -dy) and transform-origin: 50% 50%:
+  //   the tap point moves to the image center before scaling, so it stays centered.
+  var rect = modalImg.getBoundingClientRect();
+  var dx = (e.clientX - rect.left) - rect.width  / 2;
+  var dy = (e.clientY - rect.top)  - rect.height / 2;
 
-  if (zoomed) {
-    // Snap back instantly
-    modalImg.style.transition = 'none';
-    zoomed = false;
-    modalWrap.classList.remove('zoomed');
-  } else {
-    // Brief pause so the ripple is visible before zoom begins
-    setTimeout(function () {
-      modalImg.style.transition = '';
-      zoomed = true;
-      modalWrap.classList.add('zoomed');
-    }, 300);
-  }
+  // Brief pause so the ripple is visible before zoom begins
+  setTimeout(function () {
+    modalImg.style.transformOrigin = '50% 50%';
+    modalImg.style.transition = '';
+    modalImg.style.transform = 'scale(3) translate(' + (-dx) + 'px, ' + (-dy) + 'px)';
+    zoomed = true;
+    modalWrap.classList.add('zoomed');
+  }, 300);
 });
 
 // Close on backdrop click
@@ -154,8 +162,18 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'ArrowLeft')    goTo(current - 1);
   if (e.key === 'ArrowRight')   goTo(current + 1);
   if (e.key === 'z' || e.key === 'Z') {
-    modalImg.style.transition = '';
-    zoomed = !zoomed;
-    modalWrap.classList.toggle('zoomed', zoomed);
+    if (zoomed) {
+      modalImg.style.transition = 'none';
+      modalImg.style.transform = '';
+      zoomed = false;
+      modalWrap.classList.remove('zoomed');
+    } else {
+      // Zoom to center of image when using keyboard
+      modalImg.style.transformOrigin = '50% 50%';
+      modalImg.style.transition = '';
+      modalImg.style.transform = 'scale(3) translate(0px, 0px)';
+      zoomed = true;
+      modalWrap.classList.add('zoomed');
+    }
   }
 });
