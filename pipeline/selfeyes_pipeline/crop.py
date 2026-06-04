@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageFile
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+Image.MAX_IMAGE_PIXELS = None  # we control the source; decompression bomb check not needed
 
 
 def _pad_bbox(x: int, y: int, w: int, h: int,

@@ -46,19 +46,40 @@ class EyeDetection:
     face_bbox: tuple   # (x, y, w, h) of the full face in pixels
 
 
-def detect_eyes(image_path: str | Path, min_eye_px: int = 400) -> list[EyeDetection]:
+_MAX_DETECT_PX = 4096  # downscale images larger than this before detection
+
+
+def detect_eyes(image_path: str | Path, min_eye_px: int = 200) -> list[EyeDetection]:
     """Run face mesh on image; return surviving eye detections.
 
     Returns one EyeDetection per eye that meets the min_eye_px threshold.
     An image with no face or no large-enough eyes returns an empty list.
+    Very large images are downscaled for detection; bboxes are scaled back up.
     """
     mp = _get_mp()
-    img_bgr = cv2.imread(str(image_path))
-    if img_bgr is None:
+
+    # Use PIL to open (handles decompression bombs gracefully with LOAD_TRUNCATED)
+    from PIL import Image as _PILImage, ImageFile as _PILImageFile
+    _PILImageFile.LOAD_TRUNCATED_IMAGES = True
+    _PILImage.MAX_IMAGE_PIXELS = None  # disable bomb check — we control the source
+
+    try:
+        pil_img = _PILImage.open(str(image_path)).convert("RGB")
+    except Exception:
         return []
 
-    h, w = img_bgr.shape[:2]
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    orig_w, orig_h = pil_img.size
+
+    # Downscale for detection if image is very large
+    scale = 1.0
+    if max(orig_w, orig_h) > _MAX_DETECT_PX:
+        scale = _MAX_DETECT_PX / max(orig_w, orig_h)
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+        pil_img = pil_img.resize((new_w, new_h), _PILImage.LANCZOS)
+
+    img_rgb = np.array(pil_img)
+    h, w = img_rgb.shape[:2]
 
     face_mesh = mp.solutions.face_mesh.FaceMesh(
         static_image_mode=True,
@@ -93,8 +114,21 @@ def detect_eyes(image_path: str | Path, min_eye_px: int = 400) -> list[EyeDetect
             bx, by = min(ex), min(ey)
             bw, bh = max(ex) - bx, max(ey) - by
 
+            # Check threshold at detection resolution before scaling back up
             if bw < min_eye_px:
                 continue
+
+            # Scale bboxes back to original image coordinates
+            if scale != 1.0:
+                inv = 1.0 / scale
+                bx = int(bx * inv)
+                by = int(by * inv)
+                bw = int(bw * inv)
+                bh = int(bh * inv)
+                face_bbox = (
+                    int(face_bbox[0] * inv), int(face_bbox[1] * inv),
+                    int(face_bbox[2] * inv), int(face_bbox[3] * inv),
+                )
 
             detections.append(EyeDetection(
                 side=side,

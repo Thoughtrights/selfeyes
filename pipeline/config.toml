@@ -47,12 +47,25 @@ allow_non_commercial = false
 
 [filters]
 min_long_side_px = 2400
-min_eye_px = 400
+min_eye_px = 200
 sharpness_min_variance = 100.0
 tag_blocklist = [
+  # Minors
   "baby", "babies", "infant", "toddler",
   "child", "children", "kid", "kids",
   "school", "classroom",
+  # AI-generated
+  "ai", "aigenerated", "aiart", "aiportrait",
+  "stablediffusion", "midjourney", "dalle", "dalle2", "dalle3",
+  "generativeai", "artificialintelligence", "aiimage",
+  "imagineai", "firefly", "leonardoai", "runwayml",
+  # Illustrations / non-photographic
+  "illustration", "illustrated", "drawing", "sketch",
+  "digitalart", "digitalpainting", "digitalillustration",
+  "artwork", "vector", "vectorart", "cartoon", "anime",
+  "painting", "watercolor", "oilpainting", "acrylic",
+  "3drender", "3dart", "cgi", "render", "blender",
+  "virtualportrait",
 ]
 
 [crop]

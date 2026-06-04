@@ -157,9 +157,7 @@ nav a:hover {
   -webkit-user-select: none;
 }
 
-#modal-img-wrap.zoomed #modal-img {
-  transform: scale(3);
-}
+/* transform applied directly via JS (scale + centered translate) */
 
 /* Modal chrome */
 #modal-close {
@@ -301,6 +299,5 @@ nav a:hover {
   #gallery { columns: 1; padding: 0 6px 48px; }
   .site-title { letter-spacing: 0.04em; }
   #modal-hint { display: none; }
-  #modal-img-wrap.zoomed #modal-img { transform: none; }
-  #modal-img-wrap.zoomed { cursor: default; }
+  /* Zoom is enabled on mobile — JS centers the tapped region in the viewport */
 }

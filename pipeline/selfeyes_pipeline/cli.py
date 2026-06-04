@@ -94,6 +94,8 @@ def discover(
 def process(
     limit: Optional[int] = typer.Option(None, "--limit", "-n",
         help="Process at most N candidates (useful for test runs)."),
+    reprocess: bool = typer.Option(False, "--reprocess",
+        help="Re-run detection on already-downloaded images that have no eyes yet."),
 ):
     """Download, detect, score, and crop all pending candidates."""
     import requests as req
@@ -101,15 +103,31 @@ def process(
     store, cfg = _get_store_and_cfg()
     filters = cfg.get("filters", {})
     crop_cfg = cfg.get("crop", {})
-    min_eye_px = filters.get("min_eye_px", 400)
+    min_eye_px = filters.get("min_eye_px", 200)
     min_long_side = filters.get("min_long_side_px", 2400)
     sharpness_min = filters.get("sharpness_min_variance", 100.0)
     output_dir = Path(cfg["paths"]["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    candidates = store.get_candidates_for_download()
+    if reprocess:
+        # Re-detect on cached images that yielded no eyes
+        with store._conn() as conn:
+            rows = conn.execute("""
+                SELECT * FROM candidates
+                WHERE local_path IS NOT NULL
+                AND id NOT IN (SELECT DISTINCT candidate_id FROM eyes)
+                ORDER BY MAX(width_px, height_px) DESC
+            """).fetchall()
+        candidates = rows
+        typer.echo(f"\n── Re-processing {len(candidates)} already-downloaded candidates ──")
+    else:
+        candidates = store.get_candidates_for_download()
+
     if limit:
         candidates = candidates[:limit]
+
+    if not reprocess:
+        typer.echo(f"\n── Processing {len(candidates)} candidates ──")
 
     typer.echo(f"\n── Processing {len(candidates)} candidates ──")
 
@@ -119,25 +137,29 @@ def process(
         if not url:
             continue
 
-        # ── Download ──────────────────────────────────────────────────────
-        ext = url.split(".")[-1].split("?")[0].lower() or "jpg"
-        source_name = cand["source"]
-        cache_dir = Path(cfg["paths"]["cache_dir"]) / source_name
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        local_path = cache_dir / f"{cid}.{ext}"
+        # ── Download (skip if already cached) ─────────────────────────────
+        existing_path = cand["local_path"]
+        if existing_path and Path(existing_path).exists():
+            local_path = Path(existing_path)
+        else:
+            ext = url.split(".")[-1].split("?")[0].lower() or "jpg"
+            source_name = cand["source"]
+            cache_dir = Path(cfg["paths"]["cache_dir"]) / source_name
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            local_path = cache_dir / f"{cid}.{ext}"
 
-        if not local_path.exists():
-            try:
-                r = req.get(url, timeout=60, headers={"User-Agent": "selfeyes-pipeline/0.1"})
-                r.raise_for_status()
-                local_path.write_bytes(r.content)
-                time.sleep(0.8)  # polite delay
-            except Exception as e:
-                tqdm.write(f"  [download] failed {cid}: {e}")
-                continue
+            if not local_path.exists():
+                try:
+                    r = req.get(url, timeout=60, headers={"User-Agent": "selfeyes-pipeline/0.1"})
+                    r.raise_for_status()
+                    local_path.write_bytes(r.content)
+                    time.sleep(0.8)  # polite delay
+                except Exception as e:
+                    tqdm.write(f"  [download] failed {cid}: {e}")
+                    continue
 
-        sha = _sha256(str(local_path))
-        store.set_downloaded(cid, str(local_path), sha)
+            sha = _sha256(str(local_path))
+            store.set_downloaded(cid, str(local_path), sha)
 
         # ── Resolution check after download ───────────────────────────────
         try:

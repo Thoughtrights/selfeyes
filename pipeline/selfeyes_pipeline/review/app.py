@@ -21,7 +21,8 @@ def create_app(store: Store, cfg: dict) -> Flask:
     # Serve crop images directly from disk
     @app.route("/img/<path:filepath>")
     def serve_image(filepath: str):
-        full = Path(filepath)
+        # Flask strips the leading slash from absolute paths in <path:> converters
+        full = Path("/" + filepath)
         if not full.exists():
             return "not found", 404
         mime = mimetypes.guess_type(str(full))[0] or "image/jpeg"

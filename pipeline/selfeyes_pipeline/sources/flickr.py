@@ -35,7 +35,8 @@ class FlickrSource(Source):
         self.fcfg = cfg["flickr"]
         self.filters = cfg.get("filters", {})
         self.allowed_licenses = set(cfg.get("licenses", {}).get("flickr_allowed", [4, 5, 7, 8, 9, 10]))
-        self.tag_blocklist = set(self.filters.get("tag_blocklist", []))
+        self.tag_blocklist = {t.lower().replace("-", "").replace("_", "")
+                              for t in self.filters.get("tag_blocklist", [])}
         self.min_long_side = self.filters.get("min_long_side_px", 2400)
         self.cache_dir = Path(cfg["paths"]["cache_dir"]) / "api" / "flickr"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -79,10 +80,9 @@ class FlickrSource(Source):
         license_id = int(photo.get("license", 0))
         if license_id not in self.allowed_licenses:
             return False
-        # Note: safe_search=1 in the query already ensures safe results;
-        # safety_level in the extras response is often "0" (unset by owner)
-        # even for genuinely safe photos, so we do NOT filter on it here.
-        tags = {t.lower() for t in photo.get("tags", "").split()}
+        # safe_search=1 in the query already ensures safe results.
+        # Check tags against blocklist (covers AI tags, illustration, minors)
+        tags = {t.lower().replace("-", "").replace("_", "") for t in photo.get("tags", "").split()}
         if tags & self.tag_blocklist:
             return False
         return True
@@ -100,7 +100,7 @@ class FlickrSource(Source):
                 "license": ",".join(str(x) for x in sorted(self.allowed_licenses)),
                 "extras": "license,owner_name,date_taken,url_o,o_dims,url_l,url_k,width_l,height_l,tags,description,safety_level",
                 "media": "photos",
-                "content_types": "0",
+                "content_type": "1",   # 1=photos only (excludes screenshots, CGI, virtual photography)
                 "safe_search": "1",
                 "per_page": str(per_page),
                 "page": str(page),
