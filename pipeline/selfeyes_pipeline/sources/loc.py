@@ -5,6 +5,7 @@ All results are U.S. Government Work or explicitly public domain.
 """
 from __future__ import annotations
 
+import re
 import time
 from typing import Iterator
 from urllib.parse import urlencode
@@ -91,11 +92,11 @@ class LocSource(Source):
                     if not image_url:
                         continue
 
-                    # Tag blocklist
+                    # Tag blocklist — whole-word match to avoid false positives
                     subjects = " ".join(item.get("subject", [])).lower()
                     title = (item.get("title") or "").lower()
-                    combined = subjects + " " + title
-                    if any(blocked in combined for blocked in self.tag_blocklist):
+                    combined_words = set(re.findall(r"[a-z]+", subjects + " " + title))
+                    if combined_words & self.tag_blocklist:
                         continue
 
                     # Attribution

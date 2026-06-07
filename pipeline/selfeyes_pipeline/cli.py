@@ -94,6 +94,8 @@ def discover(
 def process(
     limit: Optional[int] = typer.Option(None, "--limit", "-n",
         help="Process at most N candidates (useful for test runs)."),
+    source: Optional[str] = typer.Option(None, "--source", "-s",
+        help="Only process candidates from this source: flickr, loc, smithsonian."),
     reprocess: bool = typer.Option(False, "--reprocess",
         help="Re-run detection on already-downloaded images that have no eyes yet."),
 ):
@@ -110,24 +112,35 @@ def process(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if reprocess:
-        # Re-detect on cached images that yielded no eyes
         with store._conn() as conn:
-            rows = conn.execute("""
+            q = """
                 SELECT * FROM candidates
                 WHERE local_path IS NOT NULL
                 AND id NOT IN (SELECT DISTINCT candidate_id FROM eyes)
-                ORDER BY MAX(width_px, height_px) DESC
-            """).fetchall()
+            """
+            params = []
+            if source:
+                q += " AND source = ?"
+                params.append(source)
+            q += " ORDER BY MAX(width_px, height_px) DESC"
+            rows = conn.execute(q, params).fetchall()
         candidates = rows
-        typer.echo(f"\n── Re-processing {len(candidates)} already-downloaded candidates ──")
+        label = f"{source} " if source else ""
+        typer.echo(f"\n── Re-processing {len(candidates)} already-downloaded {label}candidates ──")
     else:
-        candidates = store.get_candidates_for_download()
+        with store._conn() as conn:
+            q = "SELECT * FROM candidates WHERE local_path IS NULL AND original_url != ''"
+            params = []
+            if source:
+                q += " AND source = ?"
+                params.append(source)
+            q += " ORDER BY MAX(width_px, height_px) DESC, id"
+            candidates = conn.execute(q, params).fetchall()
+        label = f"{source} " if source else ""
+        typer.echo(f"\n── Processing {len(candidates)} {label}candidates ──")
 
     if limit:
         candidates = candidates[:limit]
-
-    if not reprocess:
-        typer.echo(f"\n── Processing {len(candidates)} candidates ──")
 
     typer.echo(f"\n── Processing {len(candidates)} candidates ──")
 
@@ -149,13 +162,28 @@ def process(
             local_path = cache_dir / f"{cid}.{ext}"
 
             if not local_path.exists():
-                try:
-                    r = req.get(url, timeout=60, headers={"User-Agent": "selfeyes-pipeline/0.1"})
-                    r.raise_for_status()
-                    local_path.write_bytes(r.content)
-                    time.sleep(0.8)  # polite delay
-                except Exception as e:
-                    tqdm.write(f"  [download] failed {cid}: {e}")
+                downloaded = False
+                delay = 5.0
+                for attempt in range(5):
+                    try:
+                        r = req.get(url, timeout=60, headers={"User-Agent": "selfeyes-pipeline/0.1"})
+                        if r.status_code == 429:
+                            tqdm.write(f"  [download] 429 rate-limited, waiting {delay:.0f}s…")
+                            time.sleep(delay)
+                            delay = min(delay * 2, 120)
+                            continue
+                        r.raise_for_status()
+                        local_path.write_bytes(r.content)
+                        time.sleep(1.2)  # polite delay between downloads
+                        downloaded = True
+                        break
+                    except Exception as e:
+                        if attempt == 4:
+                            tqdm.write(f"  [download] failed {cid}: {e}")
+                        else:
+                            time.sleep(delay)
+                            delay = min(delay * 2, 60)
+                if not downloaded:
                     continue
 
             sha = _sha256(str(local_path))

@@ -24,71 +24,185 @@ The only "AI" step is [mediapipe Face Mesh](https://ai.google.dev/edge/mediapipe
 ```bash
 cd pipeline
 
-# Python 3.9–3.12 required (mediapipe doesn't support 3.13 yet)
+# Python 3.9–3.12 required (mediapipe does not support 3.13 yet)
 python3.9 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
 
-Create a `.env` file (never committed):
+Create a `.env` file (never committed to git):
 
 ```
 FLICKR_API_KEY=your_key_here
 FLICKR_API_SECRET=your_secret_here
-# SMITHSONIAN_API_KEY=   ← register free at https://api.si.edu
+SMITHSONIAN_API_KEY=your_key_here   # register free at https://api.si.edu
 ```
 
 ---
 
-## Usage
+## Command reference
+
+### `discover` — find candidates
+
+Search photo sources and store candidates in the database. Does **not** download images.
 
 ```bash
-# 1. Discover candidates (no download yet)
+# All sources
+python -m selfeyes_pipeline discover
+
+# Specific source only
 python -m selfeyes_pipeline discover --source flickr
 python -m selfeyes_pipeline discover --source loc
-python -m selfeyes_pipeline discover   # all sources
+python -m selfeyes_pipeline discover --source smithsonian
 
-# 2. Download, detect faces, score reflections, generate crops
+# Override max pages fetched per search term
+python -m selfeyes_pipeline discover --source flickr --max-pages 10
+python -m selfeyes_pipeline discover --source loc --max-pages 5
+```
+
+---
+
+### `process` — download, detect, score, crop
+
+Downloads candidates that haven't been fetched yet, runs mediapipe face/eye detection, scores for reflections, and generates face and eye crops.
+
+```bash
+# Process all pending candidates (all sources)
 python -m selfeyes_pipeline process
-python -m selfeyes_pipeline process --limit 20   # small test run
 
-# 3. Launch the review UI
-python -m selfeyes_pipeline review
-# → http://localhost:5050
+# Process only a specific source
+python -m selfeyes_pipeline process --source loc
+python -m selfeyes_pipeline process --source smithsonian
+python -m selfeyes_pipeline process --source flickr
 
-# Or do everything at once:
+# Limit to N candidates (useful for test runs)
+python -m selfeyes_pipeline process --limit 20
+python -m selfeyes_pipeline process --source loc --limit 50
+
+# Re-run detection on already-downloaded images that produced no eyes
+# (use this after changing min_eye_px or other detection settings)
+python -m selfeyes_pipeline process --reprocess
+python -m selfeyes_pipeline process --reprocess --source loc
+python -m selfeyes_pipeline process --reprocess --limit 100
+```
+
+---
+
+### `run` — discover + process in one shot
+
+```bash
+# Discover and process all sources
 python -m selfeyes_pipeline run
 
-# Check pipeline stats
+# Single source, limited batch
+python -m selfeyes_pipeline run --source flickr --max-pages 2 --limit 100
+```
+
+---
+
+### `review` — launch the curation UI
+
+Opens a local Flask app at http://localhost:5050. Cards are sorted by reflection score (highest first). Approving an item immediately writes it to `html/manifest.json`.
+
+```bash
+python -m selfeyes_pipeline review
+
+# Custom port if 5050 is in use
+python -m selfeyes_pipeline review --port 5051
+```
+
+**Keyboard shortcuts in the UI:**
+- `A` — approve (add to gallery)
+- `S` — skip
+- `O` — open source page in browser
+- `↑` / `↓` — navigate between cards
+- `Esc` — close lightbox
+
+---
+
+### `stats` — pipeline summary
+
+```bash
 python -m selfeyes_pipeline stats
 ```
 
+Output:
+```
+Pipeline stats
+──────────────────────────────
+  Candidates discovered : 17253
+  Downloaded            : 4840
+  Eyes detected         : 199
+  Pending review        : 76
+  Approved              : 50
+  Skipped               : 82
+```
+
 ---
 
-## Review UI
+## Typical workflow
 
-`python -m selfeyes_pipeline review` opens a local web app at http://localhost:5050.
+```bash
+# 1. Fill the queue
+python -m selfeyes_pipeline discover
 
-Each card shows:
-- **Face crop** (left) — what will appear in the gallery grid
-- **Eye crop** (right) — the cornea/iris zone; click to open full-size. This is what you're evaluating: is there a visible reflection of a room, a person, a scene?
-- **Reflection score** — automated estimate based on specular highlights and contrast in the iris zone. Ranked highest-first. Not a hard filter — the human decides.
+# 2. Process a test batch first to verify quality
+python -m selfeyes_pipeline process --limit 50
 
-Keyboard shortcuts: `A` approve · `S` skip · `O` open source · `↑↓` navigate · `Esc` close lightbox.
+# 3. Open the review UI and approve what looks good
+python -m selfeyes_pipeline review
 
-Approving an item immediately adds it to `html/manifest.json` and the gallery.
+# 4. Process the full queue (runs for hours — leave it going)
+python -m selfeyes_pipeline process
+
+# 5. Keep reviewing as new candidates appear
+python -m selfeyes_pipeline review
+
+# 6. After approval, deploy the gallery
+cd .. && ./deploy.sh
+```
+
+---
+
+## Adding new Flickr search terms
+
+Edit `config.toml` under `[flickr] search_terms`, then re-run discovery. Already-seen photos are skipped (deduped by photo ID).
+
+```bash
+python -m selfeyes_pipeline discover --source flickr
+python -m selfeyes_pipeline process --source flickr
+```
 
 ---
 
 ## Configuration
 
-See `config.toml` for search terms, thresholds, and crop settings.
+All settings are in `config.toml`. Key values:
+
+| Setting | Default | Effect |
+|---|---|---|
+| `filters.min_long_side_px` | 2400 | Skip images smaller than this |
+| `filters.min_eye_px` | 200 | Skip eyes narrower than this (px) |
+| `filters.sharpness_min_variance` | 100 | Drop blurry eye crops |
+| `crop.face_longest_side_px` | 1400 | Gallery thumbnail size |
+| `crop.face_padding_pct` | 0.15 | Padding around face boundary |
+| `crop.eye_padding_pct` | 0.40 | Padding around eye crop |
+
+---
+
+## Sources
+
+| Source | License | Key required | Notes |
+|---|---|---|---|
+| Flickr | CC BY, CC BY-SA, CC0, Public Domain, U.S. Gov | Yes (free) | flickr.com/services/apps/create |
+| Library of Congress | U.S. Gov / Public Domain | No | Historical portraits, daguerreotypes |
+| Smithsonian (NPG, NMAAHC) | CC0 | Yes (free) | api.si.edu — National Portrait Gallery + NMAAHC |
 
 ---
 
 ## Ethics and licensing
 
-- Only permissive licenses are fetched (Flickr: CC BY, CC BY-SA, CC0, Public Domain, U.S. Gov, Flickr Commons)
+- Only permissive licenses are fetched — no all-rights-reserved, no ND
 - Every approved gallery item carries photographer attribution, source URL, license name, and license URL
-- A takedown contact should be listed on the gallery's credits page
 - This pipeline never scrapes social media or any source without a documented public API
+- No facial recognition, no embeddings, no identity matching

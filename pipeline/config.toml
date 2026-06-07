@@ -3,42 +3,59 @@
 
 [flickr]
 search_terms = [
-  "selfie portrait",
+  # Close-up faces — most likely to yield large eye regions
+  "face closeup portrait",
+  "eyes closeup portrait",
+  "eye macro portrait",
+  "portrait closeup eyes",
+  "face close up photograph",
+  # Reflective surfaces — directly relevant to the project
+  "sunglasses reflection portrait",
+  "aviators reflection portrait",
+  "sunglasses closeup face",
+  "eyeglasses reflection",
+  "eye reflection portrait",
+  "cornea reflection",
+  # Selfies / mirrors
+  "selfie portrait closeup",
+  "mirror selfie face",
+  # Original broader terms (kept, now with more pages)
   "self portrait",
   "sunglasses portrait",
   "aviators portrait",
-  "mirror selfie",
-  "mirror reflection portrait",
-  "dog portrait close-up",
-  "cat portrait close-up",
-  "pet eyes",
-  "horse eye macro",
+  # Pets / animals — close-up only
+  "cat eyes closeup",
+  "dog eyes closeup",
+  "horse eye closeup macro",
 ]
 include_commons = true
 per_page = 500
-max_pages_per_term = 4
+max_pages_per_term = 10
 
 [loc]
 # No API key required. All results are U.S. Government Work (public domain).
 search_terms = [
-  "portrait eye",
-  "daguerreotype face",
-  "photograph portrait close",
-  "selfie",
+  "portrait face closeup photograph",
+  "daguerreotype portrait face",
+  "photograph eyes face",
+  "portrait close",
 ]
-max_pages_per_term = 3
+max_pages_per_term = 5
 results_per_page = 50
 
 [smithsonian]
 # api_key via SMITHSONIAN_API_KEY env var
+# unit_codes targets specific museums: NPG=National Portrait Gallery,
+# NMAAHC=African American History & Culture, NMAH=American History
 search_terms = [
-  "portrait photograph",
-  "daguerreotype",
-  "face photograph",
-  "eye portrait",
+  "unit_code:NPG portrait photograph",
+  "unit_code:NPG daguerreotype",
+  "unit_code:NPG tintype",
+  "unit_code:NMAAHC portrait photograph",
+  "unit_code:NMAAHC daguerreotype",
 ]
 rows_per_request = 100
-max_requests_per_term = 3
+max_requests_per_term = 5
 
 [licenses]
 flickr_allowed = [4, 5, 7, 8, 9, 10]
