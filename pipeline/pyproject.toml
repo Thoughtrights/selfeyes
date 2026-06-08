@@ -16,6 +16,7 @@ dependencies = [
     "tomli>=2.0; python_version < '3.12'",
     "python-dotenv>=1.0",
     "tqdm>=4.66",
+    "imagehash>=4.3",
 ]
 
 [project.scripts]

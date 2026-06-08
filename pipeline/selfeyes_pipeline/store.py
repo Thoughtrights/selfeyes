@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS eyes (
     reflection_score REAL,
     face_crop_path  TEXT,
     eye_crop_path   TEXT,
+    phash           TEXT,          -- perceptual hash of face crop (hex)
     detected_at     TEXT DEFAULT (datetime('now'))
 );
 
@@ -81,6 +82,14 @@ class Store:
     def _init(self) -> None:
         with self._conn() as conn:
             conn.executescript(SCHEMA)
+            # Migrations — add columns that may not exist in older DBs
+            for migration in [
+                "ALTER TABLE eyes ADD COLUMN phash TEXT",
+            ]:
+                try:
+                    conn.execute(migration)
+                except Exception:
+                    pass  # column already exists
 
     # ── Candidates ─────────────────────────────────────────────────────────
 
@@ -134,25 +143,27 @@ class Store:
     def upsert_eye(self, eye_id: str, candidate_id: str, side: str,
                    bbox: tuple, face_bbox: tuple,
                    sharpness: float, reflection_score: float,
-                   face_crop_path: str, eye_crop_path: str) -> None:
+                   face_crop_path: str, eye_crop_path: str,
+                   phash: str = "") -> None:
         with self._conn() as conn:
             conn.execute("""
                 INSERT INTO eyes
                     (id, candidate_id, side, bbox_x, bbox_y, bbox_w, bbox_h, bbox_px_width,
                      face_bbox_x, face_bbox_y, face_bbox_w, face_bbox_h,
-                     sharpness, reflection_score, face_crop_path, eye_crop_path)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     sharpness, reflection_score, face_crop_path, eye_crop_path, phash)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(id) DO UPDATE SET
                     sharpness=excluded.sharpness,
                     reflection_score=excluded.reflection_score,
                     face_crop_path=excluded.face_crop_path,
-                    eye_crop_path=excluded.eye_crop_path
+                    eye_crop_path=excluded.eye_crop_path,
+                    phash=excluded.phash
             """, (
                 eye_id, candidate_id, side,
                 bbox[0], bbox[1], bbox[2], bbox[3], bbox[2],
                 face_bbox[0], face_bbox[1], face_bbox[2], face_bbox[3],
                 sharpness, reflection_score,
-                face_crop_path, eye_crop_path,
+                face_crop_path, eye_crop_path, phash,
             ))
             # Ensure review row exists
             conn.execute("""
@@ -189,6 +200,57 @@ class Store:
 
     def get_approved_eyes(self) -> list[sqlite3.Row]:
         return self.get_eyes_for_review(status="approved")
+
+    def get_similarity_groups(self, threshold: int = 10) -> list[list[sqlite3.Row]]:
+        """Return groups of eyes whose face crops are perceptually similar.
+
+        Uses Hamming distance between pHash hex strings. Groups with only one
+        member are excluded (nothing to compare). Threshold of 10 out of 64
+        bits catches same-photo variants; lower values are stricter.
+        """
+        import imagehash  # noqa: PLC0415
+
+        with self._conn() as conn:
+            rows = conn.execute("""
+                SELECT e.*, r.status, r.caption, c.photographer, c.license_name,
+                       c.license_url, c.source_page_url, c.source, c.date_taken
+                FROM eyes e
+                JOIN review r ON e.id = r.eye_id
+                JOIN candidates c ON e.candidate_id = c.id
+                WHERE e.phash IS NOT NULL AND e.phash != ''
+                ORDER BY e.reflection_score DESC
+            """).fetchall()
+
+        if not rows:
+            return []
+
+        # Parse hashes
+        parsed = []
+        for row in rows:
+            try:
+                h = imagehash.hex_to_hash(row["phash"])
+                parsed.append((row, h))
+            except Exception:
+                continue
+
+        # Single-pass greedy grouping
+        grouped: list[list] = []
+        used = set()
+        for i, (row_i, hash_i) in enumerate(parsed):
+            if i in used:
+                continue
+            group = [row_i]
+            used.add(i)
+            for j, (row_j, hash_j) in enumerate(parsed):
+                if j in used:
+                    continue
+                if hash_i - hash_j <= threshold:
+                    group.append(row_j)
+                    used.add(j)
+            if len(group) > 1:
+                grouped.append(group)
+
+        return grouped
 
     def stats(self) -> dict:
         with self._conn() as conn:

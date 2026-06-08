@@ -241,6 +241,15 @@ def process(
                 jpeg_quality=crop_cfg.get("jpeg_quality_eye", 92),
             )
 
+            # Compute perceptual hash of face crop for similarity detection
+            phash_str = ""
+            try:
+                import imagehash as _ih  # noqa: PLC0415
+                from PIL import Image as _PI  # noqa: PLC0415
+                phash_str = str(_ih.phash(_PI.open(str(face_path)).convert("RGB")))
+            except Exception:
+                pass
+
             store.upsert_eye(
                 eye_id=eye_id,
                 candidate_id=cid,
@@ -251,6 +260,7 @@ def process(
                 reflection_score=refl,
                 face_crop_path=str(face_path),
                 eye_crop_path=str(eye_path),
+                phash=phash_str,
             )
 
     s = store.stats()
@@ -288,6 +298,35 @@ def review(
 
 
 # ── stats ─────────────────────────────────────────────────────────────────
+
+@app.command()
+def rehash():
+    """Compute/update perceptual hashes for all existing face crops."""
+    import imagehash as _ih
+    from PIL import Image as _PI
+
+    store, _ = _get_store_and_cfg()
+    with store._conn() as conn:
+        rows = conn.execute(
+            "SELECT id, face_crop_path FROM eyes WHERE face_crop_path IS NOT NULL"
+        ).fetchall()
+
+    typer.echo(f"\n── Computing pHash for {len(rows)} eye crops ──")
+    updated = 0
+    for row in tqdm(rows, unit="crop"):
+        path = row["face_crop_path"]
+        if not path or not Path(path).exists():
+            continue
+        try:
+            h = str(_ih.phash(_PI.open(path).convert("RGB")))
+            with store._conn() as conn:
+                conn.execute("UPDATE eyes SET phash=? WHERE id=?", (h, row["id"]))
+            updated += 1
+        except Exception as e:
+            tqdm.write(f"  [rehash] {row['id']}: {e}")
+
+    typer.echo(f"Done. {updated} hashes computed.")
+
 
 @app.command()
 def stats():

@@ -129,21 +129,17 @@ nav a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden; /* clips zoomed image at viewport edge */
 }
 
 #modal-img-wrap {
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow: hidden;
+  /* sized naturally to the image — no explicit overflow clip here */
   cursor: zoom-in;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  line-height: 0; /* remove inline baseline gap */
 }
 
 #modal-img-wrap.zoomed {
   cursor: zoom-out;
-  overflow: visible;
 }
 
 #modal-img {

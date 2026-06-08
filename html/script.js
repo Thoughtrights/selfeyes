@@ -58,11 +58,16 @@ fetch('manifest.json')
   });
 
 // Modal open/close
-function openModal(idx) {
-  current = idx;
+function resetZoom() {
   zoomed = false;
   modalWrap.classList.remove('zoomed');
   modalImg.style.transition = 'none';
+  modalImg.style.transform = '';
+}
+
+function openModal(idx) {
+  current = idx;
+  resetZoom();
   modalImg.src = items[idx].src;
   modal.style.display = 'block';
   modal.classList.remove('closing');
@@ -73,21 +78,18 @@ function openModal(idx) {
 
 function closeModal() {
   modal.classList.add('closing');
+  resetZoom();
   setTimeout(function () {
     modal.style.display = 'none';
     modal.classList.remove('closing');
     document.body.style.overflow = '';
-    zoomed = false;
-    modalWrap.classList.remove('zoomed');
   }, 200);
 }
 
 function goTo(idx) {
   if (idx < 0 || idx >= items.length) return;
   current = idx;
-  zoomed = false;
-  modalWrap.classList.remove('zoomed');
-  modalImg.style.transition = 'none';
+  resetZoom();
   modalImg.src = items[idx].src;
   updateCounter();
   updateArrows();
@@ -110,11 +112,7 @@ modalWrap.addEventListener('click', function (e) {
 
   if (zoomed) {
     // Snap back instantly, no transition
-    modalImg.style.transition = 'none';
-    modalImg.style.transform = '';
-    modalImg.style.transformOrigin = '50% 40%';
-    zoomed = false;
-    modalWrap.classList.remove('zoomed');
+    resetZoom();
     return;
   }
 
@@ -163,10 +161,7 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'ArrowRight')   goTo(current + 1);
   if (e.key === 'z' || e.key === 'Z') {
     if (zoomed) {
-      modalImg.style.transition = 'none';
-      modalImg.style.transform = '';
-      zoomed = false;
-      modalWrap.classList.remove('zoomed');
+      resetZoom();
     } else {
       // Zoom to center of image when using keyboard
       modalImg.style.transformOrigin = '50% 50%';

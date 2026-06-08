@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Duplicates — Selfeyes Review</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --card: #141414; --border: #2a2a2a; --fg: #e8e8e8;
+      --muted: #666; --green: #2d7a3a; --green-light: #3ea84f;
+      --accent: #c8a96e; --skip: #555;
+    }
+    body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; }
+
+    header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(10,10,10,0.95); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.05em; color: var(--accent); }
+    .stats { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+    .stats strong { color: var(--fg); }
+    nav { margin-left: auto; display: flex; gap: 6px; }
+    nav a {
+      padding: 5px 12px; border-radius: 4px; font-size: 12px;
+      text-decoration: none; color: var(--muted); border: 1px solid var(--border); transition: all 0.15s;
+    }
+    nav a:hover { color: var(--fg); border-color: var(--fg); }
+    nav a.active { color: var(--fg); border-color: var(--accent); background: rgba(200,169,110,0.08); }
+
+    .page { padding: 20px 20px 80px; }
+
+    .page-title {
+      font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 24px;
+    }
+
+    /* ── Similarity group ── */
+    .group {
+      border: 1px solid var(--border); border-radius: 8px;
+      margin-bottom: 32px; overflow: hidden;
+    }
+    .group-header {
+      background: #1a1a1a; padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--muted);
+    }
+    .group-header strong { color: var(--fg); }
+    .group-actions { display: flex; gap: 8px; }
+    .btn-keep-best {
+      background: var(--green); color: #fff; border: none;
+      border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-keep-best:hover { background: var(--green-light); }
+    .btn-skip-all {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+      border-radius: 4px; padding: 5px 10px; font-size: 11px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-skip-all:hover { color: var(--fg); border-color: var(--fg); }
+
+    .group-cards {
+      display: flex; flex-wrap: wrap; gap: 1px; background: var(--border);
+    }
+    .group-card {
+      flex: 1; min-width: 260px; max-width: 360px;
+      background: var(--card); padding: 0;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .group-card.is-kept   { outline: 2px solid var(--green); }
+    .group-card.is-skipped { opacity: 0.35; }
+
+    .card-imgs { display: flex; gap: 1px; background: #000; height: 160px; overflow: hidden; cursor: pointer; }
+    .card-imgs .face { flex: 1; overflow: hidden; }
+    .card-imgs .eye  { width: 120px; flex-shrink: 0; overflow: hidden; }
+    .card-imgs img   { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .card-meta { padding: 10px 12px; font-size: 11px; color: var(--muted); flex: 1; }
+    .card-meta .score { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+    .card-meta .source-badge {
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+      background: var(--border); padding: 2px 6px; border-radius: 3px; color: var(--fg);
+      display: inline-block; margin-bottom: 4px;
+    }
+    .card-meta .status-badge {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 2px 7px; border-radius: 3px; display: inline-block; margin-left: 4px;
+    }
+    .status-badge.approved { background: var(--green); color: #fff; }
+    .status-badge.skipped  { background: var(--border); color: var(--muted); }
+    .status-badge.pending  { background: #2a2a1a; color: var(--accent); }
+
+    .card-actions { padding: 8px 12px 12px; display: flex; gap: 6px; }
+    .btn-keep {
+      flex: 1; background: var(--green); color: #fff; border: none;
+      border-radius: 4px; padding: 5px 0; font-size: 11px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-keep:hover { background: var(--green-light); }
+    .btn-skip-one {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+      border-radius: 4px; padding: 5px 10px; font-size: 11px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-skip-one:hover { color: var(--fg); border-color: var(--fg); }
+
+    /* Lightbox */
+    #lightbox { display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.96); align-items: center; justify-content: center; cursor: zoom-out; }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 96vw; max-height: 96vh; object-fit: contain; cursor: default; }
+    #lightbox-close { position: absolute; top: 16px; right: 20px; color: #888; font-size: 28px; cursor: pointer; }
+    #lightbox-close:hover { color: #fff; }
+
+    .empty { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .empty h2 { font-size: 1.4rem; margin-bottom: 8px; color: var(--fg); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Selfeyes Review</h1>
+  <div class="stats">
+    <span>Pending <strong id="stat-pending">{{ stats.pending }}</strong></span>
+    <span>Approved <strong id="stat-approved">{{ stats.approved }}</strong></span>
+    <span>Skipped <strong id="stat-skipped">{{ stats.skipped }}</strong></span>
+  </div>
+  <nav>
+    <a href="/?status=pending">Pending</a>
+    <a href="/?status=approved">Approved</a>
+    <a href="/?status=skipped">Skipped</a>
+    <a href="/?status=all">All</a>
+    <a href="/duplicates" class="active">Duplicates</a>
+  </nav>
+</header>
+
+<div class="page">
+  <p class="page-title">
+    {{ groups|length }} similar group{{ 's' if groups|length != 1 else '' }} detected
+    &nbsp;·&nbsp; perceptual hash distance ≤ 10
+  </p>
+
+  {% if not groups %}
+  <div class="empty">
+    <h2>No duplicates found.</h2>
+    <p>All processed images appear visually distinct at the current threshold.</p>
+  </div>
+  {% endif %}
+
+  {% for group in groups %}
+  {% set group_id = loop.index %}
+  <div class="group" id="group-{{ group_id }}" data-group-id="{{ group_id }}">
+    <div class="group-header">
+      <span><strong>{{ group|length }} similar images</strong></span>
+      <div class="group-actions">
+        <button class="btn-keep-best" onclick="keepBest({{ group_id }})">
+          ✓ Keep highest score, skip rest
+        </button>
+        <button class="btn-skip-all" onclick="skipAll({{ group_id }})">
+          Skip all
+        </button>
+      </div>
+    </div>
+    <div class="group-cards">
+      {% for eye in group %}
+      <div class="group-card {% if eye.status == 'approved' %}is-kept{% elif eye.status == 'skipped' %}is-skipped{% endif %}"
+           id="gcard-{{ eye.id|replace('-','_') }}"
+           data-eye-id="{{ eye.id }}"
+           data-score="{{ eye.reflection_score }}"
+           data-group-id="{{ group_id }}">
+        <div class="card-imgs" onclick="openLightbox('{{ eye.face_crop_path }}')">
+          <div class="face"><img src="/img/{{ eye.face_crop_path }}" alt="" loading="lazy"></div>
+          <div class="eye" onclick="event.stopPropagation(); openLightbox('{{ eye.eye_crop_path }}')">
+            <img src="/img/{{ eye.eye_crop_path }}" alt="" loading="lazy">
+          </div>
+        </div>
+        <div class="card-meta">
+          <div class="score">{{ "%.3f"|format(eye.reflection_score) }} reflection</div>
+          <span class="source-badge">{{ eye.source }}</span>
+          <span class="status-badge {{ eye.status }}">{{ eye.status }}</span>
+          <div style="margin-top:4px">{{ eye.photographer or '' }}</div>
+          <div>{{ eye.license_name }}</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-keep" onclick="keepThis('{{ eye.id }}', {{ group_id }})">✓ Keep</button>
+          <button class="btn-skip-one" onclick="skipThis('{{ eye.id }}', {{ group_id }})">Skip</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightbox-close" onclick="closeLightbox()">×</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+function openLightbox(path) {
+  document.getElementById('lightbox-img').src = '/img/' + path;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+function updateStats(stats) {
+  document.getElementById('stat-pending').textContent  = stats.pending;
+  document.getElementById('stat-approved').textContent = stats.approved;
+  document.getElementById('stat-skipped').textContent  = stats.skipped;
+}
+
+function getGroupCards(groupId) {
+  return Array.from(document.querySelectorAll(`[data-group-id="${groupId}"].group-card`));
+}
+
+async function skipThis(eyeId, groupId) {
+  const res = await fetch('/skip', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ eye_id: eyeId }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    const card = document.getElementById('gcard-' + eyeId.replace(/-/g, '_'));
+    if (card) { card.classList.add('is-skipped'); card.querySelector('.card-actions').innerHTML = '<span class="status-badge skipped">skipped</span>'; }
+    updateStats(data.stats);
+  }
+}
+
+async function keepThis(keepId, groupId) {
+  // Approve the kept card, skip the rest
+  const cards = getGroupCards(groupId);
+  const skipIds = cards.map(c => c.dataset.eyeId).filter(id => id !== keepId);
+  const res = await fetch('/skip-group', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ keep_id: keepId, skip_ids: cards.map(c => c.dataset.eyeId) }),
+  });
+  // Also approve the kept one
+  const res2 = await fetch('/approve', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ eye_id: keepId, caption: '' }),
+  });
+  const data = await res2.json();
+  if (data.ok) {
+    cards.forEach(card => {
+      if (card.dataset.eyeId === keepId) {
+        card.classList.add('is-kept');
+        card.querySelector('.card-actions').innerHTML = '<span class="status-badge approved">approved</span>';
+      } else {
+        card.classList.add('is-skipped');
+        card.querySelector('.card-actions').innerHTML = '<span class="status-badge skipped">skipped</span>';
+      }
+    });
+    updateStats(data.stats);
+  }
+}
+
+async function keepBest(groupId) {
+  // Find the card with the highest reflection score
+  const cards = getGroupCards(groupId);
+  let best = cards[0];
+  cards.forEach(c => { if (parseFloat(c.dataset.score) > parseFloat(best.dataset.score)) best = c; });
+  await keepThis(best.dataset.eyeId, groupId);
+}
+
+async function skipAll(groupId) {
+  const cards = getGroupCards(groupId);
+  for (const card of cards) {
+    await skipThis(card.dataset.eyeId, groupId);
+  }
+}
+</script>
+</body>
+</html>

@@ -62,6 +62,26 @@ def create_app(store: Store, cfg: dict) -> Flask:
         stats = s.stats()
         return jsonify({"ok": True, "stats": stats})
 
+    @app.route("/duplicates")
+    def duplicates():
+        s: Store = app.config["store"]
+        groups = s.get_similarity_groups(threshold=10)
+        stats = s.stats()
+        return render_template("duplicates.html", groups=groups, stats=stats)
+
+    @app.route("/skip-group", methods=["POST"])
+    def skip_group():
+        """Skip all eyes in a group except the one to keep."""
+        data = request.get_json()
+        keep_id = data.get("keep_id", "")
+        skip_ids = data.get("skip_ids", [])
+        s: Store = app.config["store"]
+        for eye_id in skip_ids:
+            if eye_id != keep_id:
+                s.set_review_status(eye_id, "skipped")
+        stats = s.stats()
+        return jsonify({"ok": True, "stats": stats})
+
     @app.route("/stats")
     def stats():
         s: Store = app.config["store"]

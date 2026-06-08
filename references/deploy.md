@@ -37,9 +37,9 @@ Subdomains (e.g. `qr.food.net`) have their own docroot:
 set -e
 
 EC2_USER="ubuntu"
-EC2_IP="<YOUR_EC2_IP>"           # fill in
-SSH_KEY="~/.ssh/your-key.pem"   # fill in
-VHOST="food.net"                 # default; override with --vhost
+EC2_IP="thoughtrights"           
+SSH_KEY="~/.ssh/thoughtrights-2014-07-18.pem"
+VHOST="thoughtrights.com"                 # default; override with --vhost
 DEPLOY_PATH="my-feature"         # path under vhost docroot
 
 # Parse args
