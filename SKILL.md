@@ -244,5 +244,14 @@ User asks about...
 ├── testing after deploy / e2e     → Section 5 + references/e2e-testing.md
 ├── DB schema / connections        → references/databases.md
 ├── env vars / secrets / API keys  → references/env-vars.md
-└── README for a repo              → references/readme-example.md
+├── README for a repo              → references/readme-example.md
+└── selfeyes gallery or pipeline   → SKILL.selfeyes.md  ← separate skill
 ```
+
+---
+
+## Project-specific skills
+
+| Skill file | When to use |
+|---|---|
+| `SKILL.selfeyes.md` | Any work on the selfeyes gallery (`html/`) or ingestion pipeline (`pipeline/`) — static site with rsync deploy, not the Apache/CGI pattern |

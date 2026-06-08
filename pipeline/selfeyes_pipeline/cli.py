@@ -345,5 +345,35 @@ Pipeline stats
 """)
 
 
+# ── export ────────────────────────────────────────────────────────────────
+
+@app.command()
+def export():
+    """Sync all approved eyes into html/manifest.json (no UI required)."""
+    from .export import promote_approved
+
+    store, cfg = _get_store_and_cfg()
+    n = promote_approved(store, cfg)
+    s = store.stats()
+    typer.echo(f"Manifest now has {s['approved']} pipeline items ({n} newly added).")
+
+
+# ── backup ────────────────────────────────────────────────────────────────
+
+@app.command()
+def backup():
+    """Create a timestamped backup of the pipeline database."""
+    import shutil
+    from datetime import datetime
+
+    store, _ = _get_store_and_cfg()
+    db_path = store.db_path
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = db_path.parent / f"manifest-backup-{ts}.sqlite"
+    shutil.copy2(db_path, backup_path)
+    size_mb = backup_path.stat().st_size / 1_000_000
+    typer.echo(f"Backup saved: {backup_path} ({size_mb:.1f} MB)")
+
+
 if __name__ == "__main__":
     app()
