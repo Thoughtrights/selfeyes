@@ -41,20 +41,53 @@ fetch('manifest.json')
   .then(function (r) { return r.json(); })
   .then(function (manifest) {
     items = manifest.items;
+
+    // True lazy load: images only requested when they scroll into view.
+    // Explicit aspect-ratio + single DocumentFragment append ensure items
+    // have correct height before any image loads, so the IntersectionObserver
+    // only fires for items that are genuinely near the viewport.
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          var img = entry.target.querySelector('img');
+          if (img && img.dataset.src) {
+            img.src = img.dataset.src;
+            delete img.dataset.src;
+          }
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '300px' });
+
+    // Build all DOM nodes first, then do a single append so the browser
+    // paints once — not once per item.
+    var frag = document.createDocumentFragment();
+    var wraps = [];
+
     items.forEach(function (item, idx) {
       var wrap = document.createElement('div');
       wrap.className = 'gallery-item';
-      wrap.style.animationDelay = Math.min(idx * 30, 1200) + 'ms';
 
       var img = document.createElement('img');
-      img.src = item.src;
+      img.dataset.src = item.src;
       img.alt = item.alt || '';
-      img.loading = 'lazy';
+      if (item.w && item.h) {
+        // Explicit style ensures height is reserved before src loads,
+        // in all browsers, regardless of img intrinsic-size support.
+        img.style.aspectRatio = item.w + ' / ' + item.h;
+        img.width  = item.w;
+        img.height = item.h;
+      }
 
       wrap.appendChild(img);
       wrap.addEventListener('click', function () { openModal(idx); });
-      gallery.appendChild(wrap);
+      frag.appendChild(wrap);
+      wraps.push(wrap);
     });
+
+    gallery.appendChild(frag);          // single DOM mutation → single paint
+    wraps.forEach(function (w) { observer.observe(w); });
   });
 
 // Modal open/close
